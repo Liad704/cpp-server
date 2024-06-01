@@ -78,12 +78,56 @@ void client_received_handler(SOCKET client_socket) {
 
 	std::vector<char> image_data;      // Vector to accumulate image data
 
-	while ((nDataLength = recv(client_socket, buffer, sizeof(buffer), 0)) > 0) {
-        image_data.insert(image_data.end(), buffer, buffer + nDataLength);
-		if (myString.find("\r\n\r\n") != std::string::npos) 
+
+  // Step 1: Read until the end of headers
+    bool headers_received = false;
+    size_t header_end_pos = std::string::npos;
+
+    while (!headers_received && (nDataLength = recv(client_socket, buffer, sizeof(buffer), 0)) > 0) {
+        myString.append(buffer, nDataLength);
+
+        header_end_pos = myString.find("\r\n\r\n");
+        if (header_end_pos != std::string::npos) {
+            headers_received = true;
+        }
+    }
+
+    if (header_end_pos == std::string::npos) {
+        std::cerr << "Failed to receive complete headers" << std::endl;
+        closesocket(client_socket);
+        getchar(); // Pause Console 
+	    exit(true);
+    }
+
+    // Step 2: Process headers to find Content-Length
+    std::string headers = myString.substr(0, header_end_pos + 4); // Include the \r\n\r\n
+    size_t content_length = 0;
+    std::istringstream header_stream(headers);
+    std::string header_line;
+
+    while (std::getline(header_stream, header_line)) {
+        if (header_line.find("Content-Length:") != std::string::npos) {
+            content_length = std::stoul(header_line.substr(header_line.find(":") + 1));
             break;
-	}
-	std::cout << "data inserted" << "\n"; 
+        }
+    }
+
+    // Step 3: Extract already received body part (if any)
+    size_t body_start_pos = header_end_pos + 4;
+    if (myString.size() > body_start_pos) {
+        image_data.insert(image_data.end(), myString.begin() + body_start_pos, myString.end());
+    }
+
+    // Step 4: Read the remaining body content
+    while (image_data.size() < content_length && (nDataLength = recv(client_socket, buffer, sizeof(buffer), 0)) > 0) {
+        image_data.insert(image_data.end(), buffer, buffer + nDataLength);
+    }
+
+    if (nDataLength < 0) {
+        std::cerr << "Error receiving data from socket" << std::endl;
+    } else if (nDataLength == 0 && image_data.size() < content_length) {
+        std::cerr << "Connection closed before receiving the full content" << std::endl;
+    }
 
     //check if it saved it okay using if
     image_data_to_img(image_data);

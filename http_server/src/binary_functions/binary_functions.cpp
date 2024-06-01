@@ -1,24 +1,27 @@
 #include <binary_functions.hpp>
 
 int image_data_to_img(std::vector<char>& image_data) {
-    char buffer[MAX_PATH];
-    GetModuleFileName(nullptr, buffer, MAX_PATH);
-    std::string executable_path = std::string(buffer);
-    std::string directory_path = executable_path.substr(0, executable_path.find_last_of("\\/"));
-    //not working
-    // Append file name to the path
-    std::string file_path = directory_path + "\\image.jpg";
+    // Example binary data stored in a vector of chars (replace with your actual image data)
+    // Name of the output file
+    const std::string filename = "output_image.png"; // Change the extension accordingly
 
-    std::ofstream outfile(file_path, std::ios::binary);
-    if (outfile.is_open()) {
-        outfile.write(image_data.data(), image_data.size());
-        outfile.close();
-        std::cout << "Image file 'image.jpg' created successfully.\n";
-        return 0;
-    } else {
-        std::cerr << "Error opening file 'image.jpg' for writing.\n";
+    // Open file in binary mode
+    std::ofstream outFile(filename, std::ios::out | std::ios::binary);
+
+    // Check if the file was opened successfully
+    if (!outFile) {
+        std::cerr << "Failed to open file for writing: " << filename << std::endl;
         return 1;
     }
+
+    // Write the binary data to the file
+    outFile.write(image_data.data(), image_data.size());
+    // Close the file
+    outFile.close();
+
+    std::cout << "Image saved successfully to " << filename << std::endl;
+
+    return 0;
 }
 
 
